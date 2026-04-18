@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body { @apply font-sans text-gray-900 bg-gray-50 antialiased; }
+}
+@layer components {
+  .card { @apply bg-white rounded-xl shadow-sm border border-gray-100 p-4; }
+  .btn-primary { @apply bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:opacity-50; }
+  .btn-secondary { @apply bg-white text-primary-600 border border-primary-200 px-4 py-2 rounded-lg font-medium hover:bg-primary-50 transition-colors; }
+  .badge-premium2 { @apply bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full; }
+  .badge-premium1 { @apply bg-purple-100 text-purple-700 text-xs font-semibold px-2 py-0.5 rounded-full; }
+  .badge-basic { @apply bg-gray-100 text-gray-500 text-xs font-medium px-2 py-0.5 rounded-full; }
+}
+.leaflet-container { z-index: 0; }
