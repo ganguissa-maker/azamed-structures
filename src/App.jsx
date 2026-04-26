@@ -1,4 +1,4 @@
-// src/App.jsx — SITE STRUCTURES avec route imagerie
+// src/App.jsx — SITE STRUCTURES avec toutes les routes
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from './components/ui/Toaster';
 import useAuthStore from './store/authStore';
@@ -14,6 +14,7 @@ import DashboardLaboratoire from './pages/dashboard/DashboardLaboratoire';
 import DashboardImagerie    from './pages/dashboard/DashboardImagerie';
 import DashboardHopital     from './pages/dashboard/DashboardHopital';
 import DashboardPosts       from './pages/dashboard/DashboardPosts';
+import DashboardAssurances  from './pages/dashboard/DashboardAssurances';
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated } = useAuthStore();
@@ -34,13 +35,14 @@ export default function App() {
         <Route path="/inscription" element={<GuestRoute><RegisterPage /></GuestRoute>} />
 
         <Route path="/dashboard" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
-          <Route index                  element={<DashboardHome />} />
-          <Route path="profil"          element={<DashboardProfil />} />
-          <Route path="pharmacie"       element={<DashboardPharmacie />} />
-          <Route path="laboratoire"     element={<DashboardLaboratoire />} />
-          <Route path="imagerie"        element={<DashboardImagerie />} />
-          <Route path="hopital"         element={<DashboardHopital />} />
-          <Route path="posts"           element={<DashboardPosts />} />
+          <Route index                   element={<DashboardHome />} />
+          <Route path="profil"           element={<DashboardProfil />} />
+          <Route path="pharmacie"        element={<DashboardPharmacie />} />
+          <Route path="laboratoire"      element={<DashboardLaboratoire />} />
+          <Route path="imagerie"         element={<DashboardImagerie />} />
+          <Route path="hopital"          element={<DashboardHopital />} />
+          <Route path="posts"            element={<DashboardPosts />} />
+          <Route path="assurances"       element={<DashboardAssurances />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" />} />
