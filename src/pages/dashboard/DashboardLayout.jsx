@@ -1,4 +1,4 @@
-// src/pages/dashboard/DashboardLayout.jsx — navigation adaptée aux modules activés
+// src/pages/dashboard/DashboardLayout.jsx — lecture modules corrigée
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
@@ -7,85 +7,86 @@ import {
   ShieldCheck, Clock, Scan, Shield,
 } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
-import { STRUCTURE_THEMES, MODULES_PAR_DEFAUT, QUESTIONS_ADDITIONNELLES } from '../../utils/structureThemes';
+import { STRUCTURE_THEMES, MODULES_PAR_DEFAUT } from '../../utils/structureThemes';
 
 const PUBLIC_URL    = import.meta.env.VITE_PUBLIC_URL || 'http://localhost:5173';
 const CONTACT_EMAIL = 'contactazamed@gmail.com';
 
-// Calcule les modules actifs de la structure depuis ses données
+// ✅ Lecture correcte des modules — priorité : modules sauvegardés > defaults
 function computeActiveModules(structure) {
-  const typeStructure = structure?.typeStructure || '';
-  const defaut        = MODULES_PAR_DEFAUT[typeStructure] || {};
-  const questions     = QUESTIONS_ADDITIONNELLES[typeStructure] || [];
+  const t = structure?.typeStructure || '';
 
-  // Lire les réponses sauvegardées dans le champ horaires ou description
-  // On lit depuis structure.modules si présent, sinon on utilise les defaults
-  const savedModules = structure?.modules || {};
+  // Modules par défaut selon le type
+  const def = MODULES_PAR_DEFAUT[t] || {};
 
-  const active = {
-    medicaments: defaut.medicaments || savedModules.medicaments || false,
-    examens:     defaut.examens     || savedModules.examens     || false,
-    services:    defaut.services    || savedModules.services    || false,
-    assurance:   savedModules.assurance || false,
+  // Modules sauvegardés lors de l'inscription (dans structure.modules)
+  // structure.modules est injecté par auth.js au login/register
+  const saved = structure?.modules || {};
+
+  return {
+    // Un module est actif si le default est true OU si la réponse oui a été donnée
+    medicaments: def.medicaments === true || saved.medicaments === true,
+    examens:     def.examens     === true || saved.examens     === true,
+    services:    def.services    === true || saved.services    === true,
+    assurance:   saved.assurance === true,
   };
-
-  // Fallback: si structure est une pharmacie, toujours médicaments
-  if (typeStructure === 'PHARMACIE') active.medicaments = true;
-  if (['LABORATOIRE','CENTRE_IMAGERIE','LABO_ET_IMAGERIE'].includes(typeStructure)) active.examens = true;
-  if (['HOPITAL_PUBLIC','POLYCLINIQUE','CLINIQUE','CABINET_MEDICAL','CABINET_SPECIALISE','CENTRE_SANTE'].includes(typeStructure)) active.services = true;
-
-  return active;
 }
 
-function buildNavItems(typeStructure, activeModules) {
+function buildNavItems(typeStructure, m) {
   const items = [
-    { to:'/dashboard',        label:'Tableau de bord', icon:<LayoutDashboard size={17}/>, end:true },
-    { to:'/dashboard/profil', label:'Mon profil',       icon:<User size={17}/> },
+    { to: '/dashboard',        label: 'Tableau de bord',  icon: <LayoutDashboard size={17}/>, end: true },
+    { to: '/dashboard/profil', label: 'Mon profil',        icon: <User size={17}/> },
   ];
 
-  if (activeModules.medicaments) {
-    items.push({ to:'/dashboard/pharmacie',   label:'Médicaments',      icon:<Pill size={17}/> });
+  if (m.medicaments) {
+    items.push({ to: '/dashboard/pharmacie',    label: 'Médicaments',      icon: <Pill size={17}/> });
   }
-  if (activeModules.examens) {
-    // Distinguer labos des centres imagerie
+  if (m.examens) {
     if (typeStructure === 'CENTRE_IMAGERIE') {
-      items.push({ to:'/dashboard/imagerie',  label:'Imagerie',          icon:<Scan size={17}/> });
+      items.push({ to: '/dashboard/imagerie',   label: 'Imagerie',          icon: <Scan size={17}/> });
     } else if (typeStructure === 'LABO_ET_IMAGERIE') {
-      items.push({ to:'/dashboard/laboratoire', label:'Examens',         icon:<TestTube2 size={17}/> });
-      items.push({ to:'/dashboard/imagerie',    label:'Imagerie',        icon:<Scan size={17}/> });
+      items.push({ to: '/dashboard/laboratoire',label: 'Examens',           icon: <TestTube2 size={17}/> });
+      items.push({ to: '/dashboard/imagerie',   label: 'Imagerie',          icon: <Scan size={17}/> });
     } else {
-      items.push({ to:'/dashboard/laboratoire', label:'Examens',         icon:<TestTube2 size={17}/> });
+      items.push({ to: '/dashboard/laboratoire',label: 'Examens',           icon: <TestTube2 size={17}/> });
     }
   }
-  if (activeModules.services) {
-    const label = typeStructure === 'CABINET_MEDICAL' || typeStructure === 'CABINET_SPECIALISE'
+  if (m.services) {
+    const label = ['CABINET_MEDICAL','CABINET_SPECIALISE'].includes(typeStructure)
       ? 'Consultations' : 'Services médicaux';
-    items.push({ to:'/dashboard/hopital', label, icon:<Building2 size={17}/> });
+    items.push({ to: '/dashboard/hopital',      label,                      icon: <Building2 size={17}/> });
   }
-  if (activeModules.assurance) {
-    items.push({ to:'/dashboard/assurances', label:'Assurances',         icon:<Shield size={17}/> });
+  if (m.assurance) {
+    items.push({ to: '/dashboard/assurances',   label: 'Assurances',        icon: <Shield size={17}/> });
   }
 
-  items.push({ to:'/dashboard/posts', label:'Publications', icon:<Newspaper size={17}/> });
+  items.push({ to: '/dashboard/posts',          label: 'Publications',      icon: <Newspaper size={17}/> });
 
   return items;
 }
 
+// ─── Sidebar ──────────────────────────────────────────────────
 function Sidebar({ onClose }) {
   const { user, logout } = useAuthStore();
   const navigate          = useNavigate();
   const structure         = user?.structure;
   const typeStructure     = structure?.typeStructure || '';
-  const theme             = STRUCTURE_THEMES[typeStructure] || { couleur:'#0284c7', couleurClair:'#e0f2fe', icone:'🏥', label:'Structure' };
-  const activeModules     = computeActiveModules(structure);
-  const navItems          = buildNavItems(typeStructure, activeModules);
+  const theme             = STRUCTURE_THEMES[typeStructure] || {
+    couleur: '#0284c7', couleurClair: '#e0f2fe', icone: '🏥', label: 'Structure',
+  };
+
+  // ✅ Calcul des modules actifs
+  const activeModules = computeActiveModules(structure);
+  const navItems      = buildNavItems(typeStructure, activeModules);
 
   return (
     <div className="flex flex-col h-full bg-white">
 
       {/* Header coloré */}
-      <div className="p-5 border-b border-gray-100 shrink-0"
-        style={{ background: `linear-gradient(135deg, ${theme.couleur}, ${theme.couleur}dd)` }}>
+      <div
+        className="p-5 border-b border-gray-100 shrink-0"
+        style={{ background: `linear-gradient(135deg, ${theme.couleur}, ${theme.couleur}dd)` }}
+      >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
@@ -100,7 +101,6 @@ function Sidebar({ onClose }) {
           )}
         </div>
 
-        {/* Info structure */}
         <div className="bg-white/15 rounded-xl p-3">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xl">{theme.icone}</span>
@@ -125,31 +125,39 @@ function Sidebar({ onClose }) {
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.end} onClick={onClose}
+          <NavLink
+            key={item.to} to={item.to} end={item.end} onClick={onClose}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 isActive ? 'text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`
             }
-            style={({ isActive }) => isActive ? { backgroundColor: theme.couleur } : {}}>
+            style={({ isActive }) => isActive ? { backgroundColor: theme.couleur } : {}}
+          >
             {item.icon}
             <span>{item.label}</span>
           </NavLink>
         ))}
       </nav>
 
-      {/* Footer sidebar */}
+      {/* Footer */}
       <div className="p-3 border-t border-gray-100 shrink-0 space-y-1">
-        <a href={PUBLIC_URL} target="_blank" rel="noreferrer"
-          className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors">
+        <a
+          href={PUBLIC_URL} target="_blank" rel="noreferrer"
+          className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors"
+        >
           <ExternalLink size={14}/> Voir le site public
         </a>
-        <a href={`mailto:${CONTACT_EMAIL}`}
-          className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-gray-400 hover:bg-gray-50 transition-colors">
+        <a
+          href={`mailto:${CONTACT_EMAIL}`}
+          className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-gray-400 hover:bg-gray-50 transition-colors"
+        >
           <Mail size={14}/> Nous contacter
         </a>
-        <button onClick={() => { logout(); navigate('/connexion'); }}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 w-full transition-colors">
+        <button
+          onClick={() => { logout(); navigate('/connexion'); }}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 w-full transition-colors"
+        >
           <LogOut size={17}/> Déconnexion
         </button>
       </div>
@@ -157,14 +165,16 @@ function Sidebar({ onClose }) {
   );
 }
 
+// ─── Layout principal ─────────────────────────────────────────
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuthStore();
   const typeStructure = user?.structure?.typeStructure || '';
-  const theme = STRUCTURE_THEMES[typeStructure] || { couleur:'#0284c7', icone:'🏥' };
+  const theme = STRUCTURE_THEMES[typeStructure] || { couleur: '#0284c7', icone: '🏥' };
 
   return (
     <div className="min-h-screen flex bg-gray-50">
+
       {/* Sidebar desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-100 fixed top-0 left-0 h-full z-30 shadow-sm">
         <Sidebar/>
@@ -173,23 +183,29 @@ export default function DashboardLayout() {
       {/* Sidebar mobile overlay */}
       {sidebarOpen && (
         <div className="md:hidden fixed inset-0 z-40 flex">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-            onClick={() => setSidebarOpen(false)}/>
+          <div
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+          />
           <aside className="relative w-72 bg-white h-full z-50 shadow-2xl">
             <Sidebar onClose={() => setSidebarOpen(false)}/>
           </aside>
         </div>
       )}
 
-      {/* Contenu principal */}
+      {/* Contenu */}
       <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
 
         {/* Header mobile coloré */}
-        <header className="md:hidden sticky top-0 z-20 shadow-sm shrink-0"
-          style={{ backgroundColor: theme.couleur }}>
+        <header
+          className="md:hidden sticky top-0 z-20 shadow-sm shrink-0"
+          style={{ backgroundColor: theme.couleur }}
+        >
           <div className="flex items-center gap-3 px-4 py-3">
-            <button onClick={() => setSidebarOpen(true)}
-              className="p-1.5 text-white/80 hover:text-white rounded-lg">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-1.5 text-white/80 hover:text-white rounded-lg"
+            >
               <Menu size={22}/>
             </button>
             <span className="text-lg">{theme.icone}</span>
@@ -202,18 +218,18 @@ export default function DashboardLayout() {
           </div>
         </header>
 
-        {/* Page */}
         <main className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 py-8">
           <Outlet/>
         </main>
 
-        {/* Footer */}
         <footer className="border-t border-gray-100 px-6 py-4 bg-white shrink-0">
           <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
             <span>© {new Date().getFullYear()} AZAMED — Plateforme santé Cameroun — Gratuit</span>
-            <a href={`mailto:${CONTACT_EMAIL}`}
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
               className="flex items-center gap-1.5 transition-colors hover:opacity-80"
-              style={{ color: theme.couleur }}>
+              style={{ color: theme.couleur }}
+            >
               <Mail size={11}/> {CONTACT_EMAIL}
             </a>
           </div>
