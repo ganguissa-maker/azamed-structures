@@ -1,4 +1,4 @@
-// src/pages/dashboard/DashboardHome.jsx — Accueil thématique
+// src/pages/dashboard/DashboardHome.jsx — Corrigé (Horaires + Modules)
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle, Clock, Eye, EyeOff, ArrowRight } from 'lucide-react';
@@ -19,16 +19,19 @@ const QUICK_INFOS = {
   CENTRE_SANTE:      { titre:'Vos services de santé',         desc:'Indiquez vos services et médicaments disponibles.' },
 };
 
+// ✅ Correction 1 : Lecture des modules via structure.modules (injecté par le backend)
 function computeActiveModules(structure) {
   const t = structure?.typeStructure || '';
   const def = MODULES_PAR_DEFAUT[t] || {};
-  let savedModules = {};
-  try { savedModules = JSON.parse(structure?.statutJuridique || '{}'); } catch {}
+  
+  // On récupère les modules sauvegardés (déjà un objet grâce au backend)
+  const saved = structure?.modules || {};
+
   return {
-    medicaments: def.medicaments || savedModules.medicaments || false,
-    examens:     def.examens     || savedModules.examens     || false,
-    services:    def.services    || savedModules.services    || false,
-    assurance:   savedModules.assurance || false,
+    medicaments: def.medicaments === true || saved.medicaments === true,
+    examens:     def.examens     === true || saved.examens     === true,
+    services:    def.services    === true || saved.services    === true,
+    assurance:   saved.assurance === true,
   };
 }
 
@@ -50,10 +53,10 @@ export default function DashboardHome() {
     enabled: !!structure?.id,
   });
 
-  // Construire les actions rapides selon modules actifs
+  // Actions rapides
   const actions = [
-    modules.medicaments && { to:'/dashboard/pharmacie',   label:'Gérer mes médicaments',     emoji:'💊' },
-    modules.examens && typeStructure === 'CENTRE_IMAGERIE' && { to:'/dashboard/imagerie',     label:'Gérer l\'imagerie',            emoji:'🩻' },
+    modules.medicaments && { to:'/dashboard/pharmacie',   label:'Gérer mes médicaments',    emoji:'💊' },
+    modules.examens && typeStructure === 'CENTRE_IMAGERIE' && { to:'/dashboard/imagerie',    label:'Gérer l\'imagerie',            emoji:'🩻' },
     modules.examens && typeStructure === 'LABO_ET_IMAGERIE' && { to:'/dashboard/laboratoire', label:'Gérer mes examens',            emoji:'🔬' },
     modules.examens && typeStructure === 'LABO_ET_IMAGERIE' && { to:'/dashboard/imagerie',    label:'Gérer l\'imagerie',            emoji:'🩻' },
     modules.examens && !['CENTRE_IMAGERIE','LABO_ET_IMAGERIE'].includes(typeStructure) && { to:'/dashboard/laboratoire', label:'Gérer mes examens', emoji:'🔬' },
@@ -63,12 +66,25 @@ export default function DashboardHome() {
     { to:'/dashboard/profil',                              label:'Compléter mon profil',       emoji:'✏️' },
   ].filter(Boolean);
 
-  // Afficher les horaires
-  const horairesText = structure?.horaires || (
-    structure?.heureOuverture
-      ? `${structure.heureOuverture} – ${structure.heureFermeture}`
-      : null
-  );
+  // ✅ Correction 2 : Transformation de l'objet horaires en TEXTE pour éviter le crash React #31
+  const horairesText = (function() {
+    const h = structure?.horaires;
+    if (!h) return null;
+    
+    // Si c'est un objet (format JSON Prisma)
+    if (typeof h === 'object' && !Array.isArray(h)) {
+      if (h.ouverture && h.fermeture) {
+        return `${h.ouverture} – ${h.fermeture}${h.jours ? ` (${h.jours})` : ''}`;
+      }
+      return null;
+    }
+    
+    // Si c'est déjà du texte ou les anciens champs
+    if (typeof h === 'string') return h;
+    if (structure?.heureOuverture) return `${structure.heureOuverture} – ${structure.heureFermeture}`;
+    
+    return null;
+  })();
 
   return (
     <div>
@@ -97,10 +113,6 @@ export default function DashboardHome() {
             <p className="text-green-700 text-sm mt-0.5 leading-relaxed">
               Votre {theme.label.toLowerCase()} est visible par tous les patients sur le site public et l'application mobile.
             </p>
-            <div className="flex items-center gap-1.5 mt-2">
-              <Eye size={13} className="text-green-600"/>
-              <span className="text-xs text-green-700 font-medium">Visible sur le site public</span>
-            </div>
           </div>
         </div>
       ) : (
@@ -109,11 +121,7 @@ export default function DashboardHome() {
           <div>
             <p className="font-bold text-orange-800">⏳ Vérification en attente</p>
             <p className="text-orange-700 text-sm mt-0.5 leading-relaxed">
-              Votre {theme.label.toLowerCase()} est en cours de vérification. Une fois validé, il sera visible par les patients.
-            </p>
-            <p className="text-orange-600 text-xs mt-1.5">
-              Accélérer :{' '}
-              <a href="mailto:contactazamed@gmail.com" className="font-bold underline">contactazamed@gmail.com</a>
+              Votre {theme.label.toLowerCase()} est en cours de vérification.
             </p>
             <div className="flex items-center gap-1.5 mt-2 bg-orange-100 rounded-lg px-2.5 py-1 w-fit">
               <EyeOff size={11} className="text-orange-500"/>
