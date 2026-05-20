@@ -1,202 +1,211 @@
 // src/pages/dashboard/DashboardPharmacie.jsx
-// Couleur : vert militaire (#4a7c59) — garde sur PHARMACIE pas médicament
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Search, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Search, Plus, Trash2, CheckCircle, XCircle, Package } from 'lucide-react';
 import { toast } from '../../components/ui/Toaster';
 import useAuthStore from '../../store/authStore';
+import { STRUCTURE_THEMES } from '../../utils/structureThemes';
 import api from '../../utils/api';
 
-const THEME = { primary: '#4a7c59', light: '#f0f4f1', border: '#c8ddd1' }; // vert militaire
-
-function MedCard({ pm, onDelete }) {
-  return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm text-gray-900 truncate">{pm.medicament.nomCommercial}</p>
-        <p className="text-xs text-gray-400">{pm.medicament.dci} · {pm.medicament.forme}</p>
-      </div>
-      {pm.prix && (
-        <span className="text-sm font-bold shrink-0" style={{ color: THEME.primary }}>
-          {pm.prix.toLocaleString()} F
-        </span>
-      )}
-      <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${pm.enStock ? 'bg-green-500' : 'bg-gray-300'}`}
-        title={pm.enStock ? 'En stock' : 'Rupture'}/>
-      <button onClick={() => onDelete(pm.medicament.id)}
-        className="p-1 text-red-300 hover:text-red-500 rounded transition-colors">
-        <Trash2 size={13}/>
-      </button>
-    </div>
-  );
-}
-
 export default function DashboardPharmacie() {
-  const { user }    = useAuthStore();
-  const structureId = user?.structure?.id;
-  const estDeGarde  = user?.structure?.estDeGarde || false;
-  const queryClient = useQueryClient();
+  const { user }      = useAuthStore();
+  const structureId   = user?.structure?.id;
+  const typeStructure = user?.structure?.typeStructure || 'PHARMACIE';
+  const theme         = STRUCTURE_THEMES[typeStructure] || { couleur:'#2d6a4f', couleurClair:'#d8f3dc' };
+  const qc            = useQueryClient();
 
-  const [search, setSearch]   = useState('');
-  const [medSearch, setMedSearch] = useState('');
-  const [selectedMed, setSelectedMed] = useState(null);
-  const [prix, setPrix]       = useState('');
-  const [enStock, setEnStock] = useState(true);
+  const [searchCatalogue, setSearchCatalogue] = useState('');
+  const [searchMes, setSearchMes]             = useState('');
+  const [tab, setTab]                         = useState('mes'); // 'mes' | 'ajouter'
 
-  const { data: myMeds } = useQuery({
-    queryKey: ['pharma-meds', structureId, search],
+  // Catalogue complet
+  const { data: catalogueData } = useQuery({
+    queryKey: ['catalogue-meds', searchCatalogue],
     queryFn: async () => {
-      const { data } = await api.get(`/pharmacies/${structureId}/medicaments?search=${search}`);
+      const p = new URLSearchParams({ limit: 50 });
+      if (searchCatalogue) p.set('search', searchCatalogue);
+      const { data } = await api.get(`/admin/medicaments?${p}`);
+      return data;
+    },
+  });
+
+  // Mes médicaments
+  const { data: mesData } = useQuery({
+    queryKey: ['mes-meds', structureId],
+    queryFn: async () => {
+      const { data } = await api.get(`/pharmacies/${structureId}/medicaments`);
       return data;
     },
     enabled: !!structureId,
   });
 
-  const { data: catalogue } = useQuery({
-    queryKey: ['catalogue-meds', medSearch],
-    queryFn: async () => {
-      const { data } = await api.get(`/pharmacies/catalogue/medicaments?search=${medSearch}&limit=8`);
-      return data;
-    },
-    enabled: medSearch.length >= 2,
-  });
+  const catalogue  = catalogueData?.data || catalogueData || [];
+  const mesMeds    = mesData?.data || [];
+  const mesIds     = new Set(mesMeds.map((m) => m.medicamentId));
 
-  const { mutate: addMed, isPending: adding } = useMutation({
-    mutationFn: () => api.post(`/pharmacies/${structureId}/medicaments`, {
-      medicamentId: selectedMed.id, prix: prix || null, enStock,
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['pharma-meds']);
-      setSelectedMed(null); setPrix(''); setMedSearch('');
-      toast.success('Médicament ajouté !');
-    },
+  // Ajouter un médicament
+  const { mutate: ajouter, isPending: adding } = useMutation({
+    mutationFn: ({ medicamentId }) =>
+      api.post(`/pharmacies/${structureId}/medicaments`, { medicamentId, enStock: true, disponible: true }),
+    onSuccess: () => { qc.invalidateQueries(['mes-meds']); toast.success('Médicament ajouté !'); },
     onError: (e) => toast.error(e.response?.data?.error || 'Erreur'),
   });
 
-  const { mutate: deleteMed } = useMutation({
-    mutationFn: (medId) => api.delete(`/pharmacies/${structureId}/medicaments/${medId}`),
-    onSuccess: () => { queryClient.invalidateQueries(['pharma-meds']); toast.success('Médicament retiré.'); },
+  // Retirer un médicament
+  const { mutate: retirer } = useMutation({
+    mutationFn: (id) => api.delete(`/pharmacies/${structureId}/medicaments/${id}`),
+    onSuccess: () => { qc.invalidateQueries(['mes-meds']); toast.success('Médicament retiré.'); },
   });
 
-  const { mutate: toggleGarde } = useMutation({
-    mutationFn: () => api.put(`/pharmacies/${structureId}/garde`, { estDeGarde: !estDeGarde }),
-    onSuccess: (res) => {
-      queryClient.invalidateQueries(['auth-me']);
-      // Mettre à jour le store local
-      toast.success(res.data?.message || 'Mode garde mis à jour !');
-      window.location.reload(); // refresh pour MAJ sidebar
-    },
-    onError: () => toast.error('Erreur'),
+  // Mettre à jour stock/prix
+  const { mutate: update } = useMutation({
+    mutationFn: ({ id, data }) => api.put(`/pharmacies/${structureId}/medicaments/${id}`, data),
+    onSuccess: () => qc.invalidateQueries(['mes-meds']),
   });
 
-  const meds = myMeds?.data || [];
+  const mesFiltres = mesMeds.filter((m) =>
+    !searchMes ||
+    m.medicament?.nomCommercial?.toLowerCase().includes(searchMes.toLowerCase()) ||
+    m.medicament?.dci?.toLowerCase().includes(searchMes.toLowerCase())
+  );
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-gray-900 mb-2">Médicaments disponibles</h1>
-
-      {/* ─── Mode Garde pharmacie ─── */}
-      <div className={`rounded-2xl p-4 mb-6 border-2 flex items-start gap-4 ${estDeGarde ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'}`}>
-        <div className="flex-1">
-          <p className="font-bold text-gray-900 text-sm flex items-center gap-2">
-            {estDeGarde
-              ? <><ShieldCheck size={18} className="text-green-500"/>Pharmacie de garde activée</>
-              : <><ShieldAlert size={18} className="text-gray-400"/>Mode garde désactivé</>}
-          </p>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {estDeGarde
-              ? 'Votre pharmacie apparaît dans la liste des pharmacies de garde visible par le public.'
-              : 'Activez le mode garde pour apparaître dans les pharmacies de garde.'}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={{ backgroundColor: theme.couleurClair }}>
+          <Package size={20} style={{ color: theme.couleur }}/>
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Médicaments</h1>
+          <p className="text-gray-500 text-sm">
+            {mesMeds.length} médicament{mesMeds.length > 1 ? 's' : ''} dans votre stock
           </p>
         </div>
-        <button onClick={() => toggleGarde()}
-          style={estDeGarde ? {} : { backgroundColor: THEME.primary }}
-          className={`shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
-            estDeGarde
-              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              : 'text-white hover:opacity-90'
-          }`}>
-          {estDeGarde ? 'Désactiver' : 'Activer la garde'}
-        </button>
       </div>
 
-      {/* ─── Ajouter médicament ─── */}
-      <div className="card mb-6" style={{ borderTop: `3px solid ${THEME.primary}` }}>
-        <h2 className="font-semibold text-gray-900 mb-3">Ajouter un médicament</h2>
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6">
+        {[{ k:'mes', label:'Mes médicaments' }, { k:'ajouter', label:'Ajouter du catalogue' }].map((t) => (
+          <button key={t.k} onClick={() => setTab(t.k)}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+              tab === t.k ? 'text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+            style={tab === t.k ? { backgroundColor: theme.couleur } : {}}>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-        <div className="relative mb-2">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
-          <input type="text" placeholder="Rechercher dans le catalogue AZAMED..."
-            value={medSearch} onChange={(e) => setMedSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none"
-            style={{ '--tw-ring-color': THEME.primary }}/>
-        </div>
+      {/* Tab : Mes médicaments */}
+      {tab === 'mes' && (
+        <div>
+          <div className="relative mb-4">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+            <input type="text" placeholder="Rechercher dans mes médicaments..."
+              value={searchMes} onChange={(e) => setSearchMes(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none"/>
+          </div>
 
-        {/* Résultats catalogue */}
-        {catalogue?.data?.length > 0 && !selectedMed && (
-          <div className="border border-gray-100 rounded-xl overflow-hidden mb-3">
-            {catalogue.data.map((m) => (
-              <button key={m.id} onClick={() => { setSelectedMed(m); setMedSearch(''); }}
-                className="w-full text-left px-4 py-2.5 hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-colors">
-                <p className="font-medium text-sm text-gray-900">{m.nomCommercial}</p>
-                <p className="text-xs text-gray-400">{m.dci} · {m.classeTherapeutique}</p>
+          {mesFiltres.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <Package size={40} className="mx-auto mb-3 opacity-30"/>
+              <p className="font-medium">Aucun médicament</p>
+              <p className="text-sm mt-1">Ajoutez des médicaments depuis le catalogue</p>
+              <button onClick={() => setTab('ajouter')}
+                className="mt-3 px-4 py-2 text-sm font-semibold text-white rounded-xl"
+                style={{ backgroundColor: theme.couleur }}>
+                Voir le catalogue
               </button>
-            ))}
-          </div>
-        )}
-
-        {/* Médicament sélectionné */}
-        {selectedMed && (
-          <div className="rounded-xl p-3 mb-3 flex items-center gap-3" style={{ backgroundColor: THEME.light, border: `1px solid ${THEME.border}` }}>
-            <div className="flex-1">
-              <p className="font-semibold text-sm text-gray-900">{selectedMed.nomCommercial}</p>
-              <p className="text-xs text-gray-500">{selectedMed.dci}</p>
             </div>
-            <button onClick={() => setSelectedMed(null)} className="text-xs text-gray-400 hover:text-gray-600">✕</button>
-          </div>
-        )}
+          ) : (
+            <div className="card p-0 overflow-hidden">
+              <div className="px-4 py-3 border-b text-xs font-bold uppercase tracking-wider"
+                style={{ backgroundColor: theme.couleurClair, color: theme.couleur }}>
+                {mesFiltres.length} médicament(s)
+              </div>
+              <div className="divide-y divide-gray-50">
+                {mesFiltres.map((pm) => (
+                  <div key={pm.id} className="px-4 py-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-gray-900 truncate">{pm.medicament?.nomCommercial}</p>
+                      <p className="text-xs text-gray-400">{pm.medicament?.dci} · {pm.medicament?.forme} · {pm.medicament?.dosage}</p>
+                    </div>
 
-        {selectedMed && (
-          <div className="flex gap-3 items-end">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-600 mb-1">Prix (FCFA)</label>
-              <input type="number" placeholder="Optionnel" value={prix}
-                onChange={(e) => setPrix(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none"/>
-            </div>
-            <div className="flex items-center gap-2 pb-1">
-              <input type="checkbox" id="stock" checked={enStock} onChange={(e) => setEnStock(e.target.checked)}
-                className="w-4 h-4 cursor-pointer"/>
-              <label htmlFor="stock" className="text-sm text-gray-600 cursor-pointer">En stock</label>
-            </div>
-            <button onClick={() => addMed()} disabled={adding}
-              className="px-4 py-2 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
-              style={{ backgroundColor: THEME.primary }}>
-              {adding ? '...' : 'Ajouter'}
-            </button>
-          </div>
-        )}
-      </div>
+                    {/* Prix */}
+                    <input type="number" placeholder="Prix CFA"
+                      defaultValue={pm.prix || ''}
+                      onBlur={(e) => update({ id: pm.id, data: { prix: parseFloat(e.target.value) || null } })}
+                      className="w-24 px-2 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none text-center"
+                      min="0"/>
 
-      {/* ─── Liste médicaments ─── */}
-      <div className="card p-0 overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between" style={{ backgroundColor: THEME.light }}>
-          <h2 className="font-semibold text-sm" style={{ color: THEME.primary }}>
-            {meds.length} médicament(s) référencé(s)
-          </h2>
-          <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"/>
-            <input type="text" placeholder="Filtrer..." value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-7 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none w-36"/>
+                    {/* En stock */}
+                    <button onClick={() => update({ id: pm.id, data: { enStock: !pm.enStock } })}
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                        pm.enStock ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                      {pm.enStock ? <CheckCircle size={11}/> : <XCircle size={11}/>}
+                      {pm.enStock ? 'En stock' : 'Rupture'}
+                    </button>
+
+                    <button onClick={() => retirer(pm.id)}
+                      className="p-1.5 text-red-300 hover:text-red-500 rounded-lg transition-colors">
+                      <Trash2 size={14}/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab : Catalogue */}
+      {tab === 'ajouter' && (
+        <div>
+          <div className="relative mb-4">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
+            <input type="text" placeholder="Rechercher un médicament dans le catalogue..."
+              value={searchCatalogue} onChange={(e) => setSearchCatalogue(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none"/>
+          </div>
+
+          <div className="card p-0 overflow-hidden">
+            <div className="divide-y divide-gray-50 max-h-[70vh] overflow-y-auto">
+              {catalogue.map((med) => {
+                const dejaDans = mesIds.has(med.id);
+                return (
+                  <div key={med.id} className="px-4 py-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-gray-900 truncate">{med.nomCommercial}</p>
+                      <p className="text-xs text-gray-400">{med.dci} · {med.forme} · {med.dosage}</p>
+                      <p className="text-xs font-medium mt-0.5" style={{ color: theme.couleur }}>
+                        {med.classeTherapeutique}
+                      </p>
+                    </div>
+                    {dejaDans ? (
+                      <span className="text-xs text-green-600 font-semibold px-2.5 py-1.5 bg-green-50 rounded-lg">
+                        ✓ Ajouté
+                      </span>
+                    ) : (
+                      <button onClick={() => ajouter({ medicamentId: med.id })} disabled={adding}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white rounded-lg transition-colors disabled:opacity-50"
+                        style={{ backgroundColor: theme.couleur }}>
+                        <Plus size={12}/> Ajouter
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+              {catalogue.length === 0 && (
+                <div className="text-center py-10 text-gray-400 text-sm">
+                  Aucun médicament trouvé dans le catalogue
+                </div>
+              )}
+            </div>
           </div>
         </div>
-        <div className="px-5 py-2 divide-y divide-gray-50">
-          {meds.length === 0
-            ? <p className="text-sm text-gray-400 text-center py-8">Aucun médicament ajouté.</p>
-            : meds.map((pm) => <MedCard key={pm.id} pm={pm} onDelete={deleteMed}/>)}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
