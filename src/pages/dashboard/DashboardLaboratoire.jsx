@@ -35,7 +35,7 @@ export default function DashboardLaboratoire() {
       const p = new URLSearchParams({ limit: 200 });
       if (searchCat)  p.set('search', searchCat);
       if (catFilter)  p.set('categorie', catFilter);
-      const { data } = await api.get(`/admin/examens?${p}`);
+      const { data } = await api.get(`/catalogue/examens?${p}`);
       return data;
     },
   });

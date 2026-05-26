@@ -35,7 +35,7 @@ export default function DashboardPharmacie() {
       const p = new URLSearchParams({ limit: 200 });
       if (searchCat)    p.set('search', searchCat);
       if (classeFilter) p.set('classe', classeFilter);
-      const { data } = await api.get(`/admin/medicaments?${p}`);
+      const { data } = await api.get(`/catalogue/medicaments?${p}`);
       return data;
     },
   });
