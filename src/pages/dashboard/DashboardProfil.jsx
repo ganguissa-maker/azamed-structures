@@ -166,7 +166,7 @@ export default function DashboardProfil() {
           <p className="text-sm font-semibold text-orange-800 mb-1">⏳ Vérification en attente</p>
           <p className="text-xs text-orange-600 leading-relaxed">
             Pour accélérer la vérification de votre établissement, envoyez vos documents (autorisation, agrément) à{' '}
-            <a href="mailto:contactazamed@gmail.com" className="font-bold underline">contactazamed@gmail.com</a>
+            <a href="mailto:contactazamed98@gmail.com" className="font-bold underline">contactazamed98@gmail.com</a>
           </p>
         </div>
       )}

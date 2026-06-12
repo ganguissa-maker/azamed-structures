@@ -4,7 +4,7 @@ import { CheckCircle, ExternalLink, UserPlus, LogIn, Mail } from 'lucide-react';
 import { TYPES_LISTE, STRUCTURE_THEMES } from '../utils/structureThemes';
 
 const PUBLIC_URL    = import.meta.env.VITE_PUBLIC_URL || 'http://localhost:5173';
-const CONTACT_EMAIL = 'contactazamed@gmail.com';
+const CONTACT_EMAIL = 'contactazamed98@gmail.com';
 
 const avantages = [
   { emoji:'👁️',  titre:'Visible par vos patients',      desc:'Une fois vérifié, votre établissement apparaît sur AZAMED et l\'application mobile.' },

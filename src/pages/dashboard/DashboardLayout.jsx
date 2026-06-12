@@ -10,7 +10,7 @@ import useAuthStore from '../../store/authStore';
 import { STRUCTURE_THEMES, MODULES_PAR_DEFAUT } from '../../utils/structureThemes';
 
 const PUBLIC_URL    = import.meta.env.VITE_PUBLIC_URL || 'http://localhost:5173';
-const CONTACT_EMAIL = 'contactazamed@gmail.com';
+const CONTACT_EMAIL = 'contactazamed98@gmail.com';
 
 // ✅ Lecture correcte des modules — priorité : modules sauvegardés > defaults
 function computeActiveModules(structure) {

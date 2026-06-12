@@ -202,8 +202,8 @@ export default function DashboardHome() {
             </p>
             <p className="text-orange-600 text-xs mt-2">
               Pour accélérer :{' '}
-              <a href="mailto:contactazamed@gmail.com" className="font-bold underline">
-                contactazamed@gmail.com
+              <a href="mailto:contactazamed98@gmail.com" className="font-bold underline">
+                contactazamed98@gmail.com
               </a>
             </p>
             <div className="flex items-center gap-1.5 mt-2 bg-orange-100 rounded-lg px-3 py-1.5 w-fit">
