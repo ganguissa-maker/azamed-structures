@@ -1,5 +1,5 @@
 // src/pages/RegisterPage.jsx — Horaires par jour avec plages individuelles
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus, ExternalLink, Info, ChevronRight, ChevronLeft, Check, Plus, X } from 'lucide-react';
 import { toast } from '../components/ui/Toaster';
@@ -523,14 +523,24 @@ export default function RegisterPage() {
     email:'', password:'',
   });
   const [loading, setLoading] = useState(false);
+  const [code, setCode]       = useState('');
+  const [resending, setResending] = useState(false);
+  const [cooldown, setCooldown]   = useState(0);
+  const [verifyError, setVerifyError] = useState('');
   const { login }             = useAuthStore();
   const navigate              = useNavigate();
- 
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
   const handleChange = (field) => (e) => {
     const value = e.target.value;
     setForm((prev) => ({ ...prev, [field]: value }));
   };
- 
+
   const handleSelectType = (type) => {
     setForm((prev) => ({
       ...prev,
@@ -540,7 +550,7 @@ export default function RegisterPage() {
     setType(type);
     setStep(2);
   };
- 
+
   const computeModules = () => {
     const def       = MODULES_PAR_DEFAUT[typeStructure] || {};
     const questions = QUESTIONS_ADDITIONNELLES[typeStructure] || [];
@@ -551,13 +561,13 @@ export default function RegisterPage() {
     });
     return modules;
   };
- 
+
+  // Étape 3 → envoie le formulaire, reçoit un code par email
   const handleSubmit = async () => {
     setLoading(true);
     try {
       const modules = computeModules();
- 
-      // Construire horaires structurés pour le backend
+
       const horaires = form.horaire24h7j
         ? { mode: '24h/24 7j/7' }
         : {
@@ -569,22 +579,21 @@ export default function RegisterPage() {
                 return acc;
               }, {}),
           };
- 
-      const { data } = await api.post('/auth/register', {
+
+      await api.post('/auth/register', {
         ...form,
         typeStructure,
         modules,
         horairesJson: JSON.stringify(horaires),
-        // Pour compatibilité backend
         horaire24h7j:   form.horaire24h7j,
         joursOuverture: JOURS_SEMAINE.filter((j) => form.horairesParJour?.[j.key]?.ouvert).map((j) => j.key),
         heureOuverture: '08:00',
         heureFermeture: '18:00',
       });
- 
-      login(data.user, data.token);
-      toast.success('Compte créé ! Bienvenue sur AZAMED 🎉');
-      navigate('/dashboard');
+
+      toast.success('Code envoyé par email !');
+      setStep(4);
+      setCooldown(30);
     } catch (err) {
       toast.error(
         err.response?.data?.errors?.[0]?.msg ||
@@ -595,7 +604,38 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
- 
+
+  // Étape 4 → valide le code, crée réellement le compte structure
+  const handleVerifyCode = async () => {
+    if (!code.trim() || code.trim().length < 6) { setVerifyError('Entrez le code à 6 chiffres reçu par email.'); return; }
+    setLoading(true); setVerifyError('');
+    try {
+      const { data } = await api.post('/auth/verify-email', {
+        email: form.email.trim().toLowerCase(),
+        code:  code.trim(),
+      });
+      login(data.user, data.token);
+      toast.success('Compte créé ! Bienvenue sur AZAMED 🎉');
+      navigate('/dashboard');
+    } catch (err) {
+      setVerifyError(err.response?.data?.error || 'Code invalide ou expiré');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setResending(true); setVerifyError('');
+    try {
+      await api.post('/auth/resend-code', { email: form.email.trim().toLowerCase() });
+      setCooldown(30);
+    } catch (err) {
+      setVerifyError(err.response?.data?.error || 'Erreur lors du renvoi');
+    } finally {
+      setResending(false);
+    }
+  };
+
   const theme = typeStructure ? STRUCTURE_THEMES[typeStructure] : null;
  
   return (
@@ -612,7 +652,7 @@ export default function RegisterPage() {
             <span className="font-bold text-white">AZAMED Structures</span>
           </Link>
           <div className="flex items-center gap-2">
-            {[1,2,3].map((s) => (
+            {[1,2,3,4].map((s) => (
               <div key={s} className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                 s < step ? 'bg-white text-gray-800'
                 : s === step ? 'bg-white/90 text-gray-800 shadow-lg scale-110'
@@ -624,7 +664,7 @@ export default function RegisterPage() {
           </div>
         </div>
       </header>
- 
+
       <div className="flex-1 px-4 py-6 overflow-y-auto">
         <div className="max-w-2xl mx-auto">
           <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8">
@@ -636,6 +676,48 @@ export default function RegisterPage() {
             {step === 3 && (
               <StepCompte typeStructure={typeStructure} form={form}
                 onChange={handleChange} onSubmit={handleSubmit} onBack={() => setStep(2)} loading={loading}/>
+            )}
+            {step === 4 && (
+              <div className="space-y-4 text-center">
+                <div className="text-center mb-2">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Étape 4 / 4</p>
+                  <h2 className="text-xl font-bold text-gray-900">Vérifiez votre email</h2>
+                </div>
+                <div className="w-16 h-16 rounded-2xl bg-primary-100 flex items-center justify-center mx-auto">
+                  <span className="text-3xl">📧</span>
+                </div>
+                <p className="text-sm text-gray-500">
+                  Un code à 6 chiffres a été envoyé à<br/>
+                  <span className="font-bold text-gray-900">{form.email}</span>
+                </p>
+
+                {verifyError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl text-left">
+                    {verifyError}
+                  </div>
+                )}
+
+                <div className="text-left">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1 text-center">Code de vérification</label>
+                  <input value={code} onChange={(e) => { setCode(e.target.value); setVerifyError(''); }}
+                    placeholder="000000" maxLength={6} inputMode="numeric"
+                    className="w-full px-3 py-3 border border-gray-200 rounded-xl text-center text-2xl font-black tracking-[0.3em] focus:outline-none focus:border-primary-400"/>
+                </div>
+
+                <button onClick={handleVerifyCode} disabled={loading}
+                  className="w-full bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm transition-colors">
+                  {loading ? 'Vérification...' : '✓ Valider et créer mon compte'}
+                </button>
+
+                <button onClick={handleResendCode} disabled={resending || cooldown > 0}
+                  className="text-sm font-semibold text-primary-600 hover:underline disabled:text-gray-400 disabled:no-underline">
+                  {cooldown > 0 ? `Renvoyer le code (${cooldown}s)` : resending ? 'Envoi...' : 'Renvoyer le code'}
+                </button>
+
+                <button onClick={() => setStep(3)} className="block w-full text-sm text-gray-400 hover:text-gray-600">
+                  ← Retour
+                </button>
+              </div>
             )}
             {step === 1 && (
               <div className="mt-5 pt-4 border-t border-gray-100 text-center">
