@@ -435,7 +435,7 @@ function StepCompte({ typeStructure, form, onChange, onSubmit, onBack, loading }
       <div className="space-y-4">
         <Field label="Adresse email" name="email" type="email" required placeholder="votre@email.com"
           value={form.email} onChange={onChange('email')}/>
-        <Field label="Mot de passe" name="password" type="password" required placeholder="Minimum 6 caractères"
+        <Field label="Mot de passe" name="password" type="password" required placeholder="Minimum 8 caractères"
           value={form.password} onChange={onChange('password')}/>
  
         {/* Récapitulatif */}
