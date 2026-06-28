@@ -88,16 +88,19 @@ export const QUESTIONS_ADDITIONNELLES = {
     { key:'offresServices',     label:'Offrez-vous des services médicaux ?',                        active:'services'    },
     { key:'dispenseMeds',       label:'Dispensez-vous des médicaments ?',                           active:'medicaments' },
     { key:'collaboreAssurance', label:'Collaborez-vous avec des assurances ?',                      active:'assurance'   },
+    { key:'offresQuotePart',    label:'Offrez-vous des quotes-part aux médecins ?',                 active:'quotepart', type:'pourcentage' },
   ],
   CENTRE_IMAGERIE: [
     { key:'offresServices',     label:'Offrez-vous des services médicaux ?',                        active:'services'    },
     { key:'dispenseMeds',       label:'Dispensez-vous des médicaments ?',                           active:'medicaments' },
     { key:'collaboreAssurance', label:'Collaborez-vous avec des assurances ?',                      active:'assurance'   },
+    { key:'offresQuotePart',    label:'Offrez-vous des quotes-part aux médecins ?',                 active:'quotepart', type:'pourcentage' },
   ],
   LABO_ET_IMAGERIE: [
     { key:'offresServices',     label:'Offrez-vous des services médicaux ?',                        active:'services'    },
     { key:'dispenseMeds',       label:'Dispensez-vous des médicaments ?',                           active:'medicaments' },
     { key:'collaboreAssurance', label:'Collaborez-vous avec des assurances ?',                      active:'assurance'   },
+    { key:'offresQuotePart',    label:'Offrez-vous des quotes-part aux médecins ?',                 active:'quotepart', type:'pourcentage' },
   ],
   HOPITAL_PUBLIC: [
     { key:'collaboreAssurance', label:'Collaborez-vous avec des assurances ?',                      active:'assurance'   },

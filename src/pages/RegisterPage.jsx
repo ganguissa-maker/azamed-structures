@@ -166,7 +166,7 @@ function SectionHoraires({ form, onChange, theme }) {
 function QuestionsOuiNon({ typeStructure, form, onChange, theme }) {
   const questions = QUESTIONS_ADDITIONNELLES[typeStructure] || [];
   if (questions.length === 0) return null;
- 
+
   return (
     <div className="rounded-xl border border-gray-200 overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
@@ -177,10 +177,13 @@ function QuestionsOuiNon({ typeStructure, form, onChange, theme }) {
       <div className="divide-y divide-gray-100">
         {questions.map((q) => {
           const val = form[q.key];
+          // Champ de pourcentage associé — uniquement pour les questions de
+          // type 'pourcentage' (quote-part labos/imagerie/labo+imagerie).
+          const pourcentageKey = q.type === 'pourcentage' ? `${q.key}Pourcentage` : null;
           return (
             <div key={q.key} className="px-4 py-4">
               <p className="text-sm font-medium text-gray-800 mb-3 leading-relaxed">{q.label}</p>
-              <div className="flex gap-3 flex-wrap">
+              <div className="flex gap-3 flex-wrap items-center">
                 <button
                   type="button"
                   onClick={() => onChange(q.key)({ target: { value: true } })}
@@ -196,7 +199,10 @@ function QuestionsOuiNon({ typeStructure, form, onChange, theme }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => onChange(q.key)({ target: { value: false } })}
+                  onClick={() => {
+                    onChange(q.key)({ target: { value: false } });
+                    if (pourcentageKey) onChange(pourcentageKey)({ target: { value: '' } });
+                  }}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all"
                   style={val === false
                     ? { backgroundColor: '#6b7280', borderColor: '#6b7280', color: '#fff' }
@@ -207,7 +213,25 @@ function QuestionsOuiNon({ typeStructure, form, onChange, theme }) {
                   </span>
                   Non
                 </button>
-                {val === true && (
+
+                {val === true && pourcentageKey && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      value={form[pourcentageKey] || ''}
+                      onChange={onChange(pourcentageKey)}
+                      placeholder="Ex: 10"
+                      className="w-24 px-3 py-2 border-2 rounded-xl text-sm font-semibold focus:outline-none"
+                      style={{ borderColor: theme.couleurMed + '60' }}
+                    />
+                    <span className="text-sm font-semibold text-gray-600">%</span>
+                  </div>
+                )}
+
+                {val === true && !pourcentageKey && (
                   <span className="self-center text-xs font-semibold px-3 py-1.5 rounded-full"
                     style={{ backgroundColor: theme.couleurClair, color: theme.couleur }}>
                     {q.active === 'services'    && '✓ Onglet Services activé'}
@@ -222,6 +246,7 @@ function QuestionsOuiNon({ typeStructure, form, onChange, theme }) {
                     {q.active === 'medicaments' && 'Pas d\'onglet Médicaments'}
                     {q.active === 'examens'     && 'Pas d\'onglet Examens'}
                     {q.active === 'assurance'   && 'Pas d\'onglet Assurances'}
+                    {q.active === 'quotepart'   && 'Aucune quote-part'}
                   </span>
                 )}
               </div>
@@ -287,7 +312,16 @@ function StepInfos({ typeStructure, form, onChange, onNext, onBack }) {
   const theme    = STRUCTURE_THEMES[typeStructure];
   const champs   = CHAMPS_SPECIFIQUES[typeStructure] || [];
   const questions = QUESTIONS_ADDITIONNELLES[typeStructure] || [];
-  const allAnswered = questions.every((q) => form[q.key] === true || form[q.key] === false);
+  const allAnswered = questions.every((q) => {
+    const answered = form[q.key] === true || form[q.key] === false;
+    if (!answered) return false;
+    // Si "Oui" + question de type pourcentage, le pourcentage doit aussi être rempli
+    if (q.type === 'pourcentage' && form[q.key] === true) {
+      const pct = form[`${q.key}Pourcentage`];
+      return pct !== undefined && pct !== null && pct !== '';
+    }
+    return true;
+  });
   const canContinue = form.nomLegal && form.telephone && form.ville && allAnswered;
  
   return (
