@@ -8,10 +8,25 @@ import { STRUCTURE_THEMES } from '../../utils/structureThemes';
 import api from '../../utils/api';
 
 const ASSURANCES_CAMEROUN = [
-  'BEAC Assurances','Beneficial Life','CAAR','CAMPOST Vie',
-  'Chanas Assurances','CNPS','GFA Cameroun','NSIA Cameroun',
-  'Prudential Beneficial Life','SAAR','Saham Assurance Cameroun',
-  'SOCAR','Zeniath Assurance',
+  'Activa Assurances',
+  'Activa Vie',
+  'ACAM Vie',
+  'Atlantique Assurances Cameroun',
+  'AXA Assurances Cameroun',
+  'CAMPOST Vie',
+  'Chanas Assurances',
+  'GMC Assurance',
+  'NSIA Assurances Cameroun',
+  'NSIA Vie Cameroun',
+  'Prudential Beneficial Life',
+  'SAAR Assurances',
+  'SAAR Vie',
+  'Saham Assurance Vie Cameroun',
+  'SanlamAllianz Cameroun',
+  'SOCAR',
+  'SONAM Assurances',
+  'SUNU Assurances Vie Cameroun',
+  'WAFA Assurances Vie Cameroun',
 ];
 
 export default function DashboardAssurances() {

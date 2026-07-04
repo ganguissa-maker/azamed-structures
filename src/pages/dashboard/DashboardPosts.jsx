@@ -120,6 +120,10 @@ export default function DashboardPosts() {
             placeholder="Rédigez votre publication (minimum 10 caractères)..."
             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary-400 resize-none"/>
 
+          <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
+            Cette publication sera visible pendant 24 heures, puis disparaitra automatiquement.
+          </p>
+
           {/* Prévisualisation média */}
           {mediaPreview && (
             <div className="relative inline-block">
@@ -174,17 +178,20 @@ export default function DashboardPosts() {
                   <span className="text-xs text-gray-400">
                     {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true, locale: fr })}
                   </span>
+                  {post.isExpired ? (
+                    <span className="text-xs text-red-500 bg-red-50 px-2 py-0.5 rounded-full font-medium">Expiree</span>
+                  ) : (
+                    <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full font-medium">Visible 24h</span>
+                  )}
                 </div>
                 {/* Texte */}
                 <p className="text-sm text-gray-800 whitespace-pre-line mb-2">{post.contenu}</p>
-                {/* Image */}
-                {post.imageUrl && (
-                  <img src={post.imageUrl} alt="" className="max-h-40 rounded-xl object-cover mb-2 cursor-pointer"
-                    onClick={() => window.open(post.imageUrl, '_blank')}/>
-                )}
-                {/* Vidéo */}
-                {post.videoUrl && (
-                  <video src={post.videoUrl} controls className="max-h-40 rounded-xl mb-2 w-full"/>
+                {/* Media (image OU video) - le backend stocke tout dans mediaUrl */}
+                {post.mediaUrl && (
+                  /\.(mp4|webm|mov)$/i.test(post.mediaUrl)
+                    ? <video src={post.mediaUrl} controls className="max-h-40 rounded-xl mb-2 w-full"/>
+                    : <img src={post.mediaUrl} alt="" className="max-h-40 rounded-xl object-cover mb-2 cursor-pointer"
+                        onClick={() => window.open(post.mediaUrl, '_blank')}/>
                 )}
               </div>
               {/* Supprimer */}
