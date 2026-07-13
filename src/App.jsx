@@ -43,6 +43,7 @@ export default function App() {
           <Route path="hopital"          element={<DashboardHopital />} />
           <Route path="posts"            element={<DashboardPosts />} />
           <Route path="assurances"       element={<DashboardAssurances />} />
+          <Route path="/politique-confidentialite" element={<PolitiqueConfidentialitePage/>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" />} />
