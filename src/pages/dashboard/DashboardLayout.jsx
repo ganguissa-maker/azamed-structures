@@ -143,6 +143,12 @@ function Sidebar({ onClose }) {
       {/* Footer */}
       <div className="p-3 border-t border-gray-100 shrink-0 space-y-1">
         <a
+          href={`${PUBLIC_URL}/politique-confidentialite`} target="_blank" rel="noreferrer"
+          className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors"
+        >
+          <ExternalLink size={14}/> Politique de confidentialité
+        </a>
+        <a
           href={PUBLIC_URL} target="_blank" rel="noreferrer"
           className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors"
         >
