@@ -15,6 +15,7 @@ import DashboardImagerie    from './pages/dashboard/DashboardImagerie';
 import DashboardHopital     from './pages/dashboard/DashboardHopital';
 import DashboardPosts       from './pages/dashboard/DashboardPosts';
 import DashboardAssurances  from './pages/dashboard/DashboardAssurances';
+import PolitiqueConfidentialitePage from './pages/PolitiqueConfidentialitePage';
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated } = useAuthStore();
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/"            element={<GuestRoute><AccueilPage /></GuestRoute>} />
         <Route path="/connexion"   element={<GuestRoute><LoginPage /></GuestRoute>} />
         <Route path="/inscription" element={<GuestRoute><RegisterPage /></GuestRoute>} />
+        <Route path="/politique-confidentialite" element={<PolitiqueConfidentialitePage/>} />
 
         <Route path="/dashboard" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
           <Route index                   element={<DashboardHome />} />
@@ -43,7 +45,6 @@ export default function App() {
           <Route path="hopital"          element={<DashboardHopital />} />
           <Route path="posts"            element={<DashboardPosts />} />
           <Route path="assurances"       element={<DashboardAssurances />} />
-          <Route path="/politique-confidentialite" element={<PolitiqueConfidentialitePage/>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" />} />
